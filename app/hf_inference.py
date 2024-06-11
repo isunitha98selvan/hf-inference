@@ -23,7 +23,7 @@ def evaluate(
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModelForCausalLM.from_pretrained(
-       model_name_or_path, device_map="auto"
+       model_name_or_path, device_map="cuda:0"
     )
 
     print("Loaded the model!")
@@ -37,7 +37,7 @@ def evaluate(
         model=model_name_or_path,
         tokenizer=tokenizer,
         max_new_tokens=max_new_tokens,
-
+        device="cuda:0"
     )
 
     responses = []
