@@ -16,6 +16,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+print("GPU Device count: ", torch.cuda.device_count())
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"  # Use all 8 GPUs
+print("GPU Device count: ", torch.cuda.device_count())
+
 def evaluate(
     model_name_or_path,
     test_ds_path,
@@ -25,7 +29,7 @@ def evaluate(
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModelForCausalLM.from_pretrained(
-       model_name_or_path, device_map="auto"
+       model_name_or_path, device_map="cuda"
     )
     model.eval()
     print(f"Loaded the model {model_name_or_path}")
@@ -39,7 +43,8 @@ def evaluate(
         model=model_name_or_path,
         tokenizer=tokenizer,
         max_new_tokens=max_new_tokens,
-        num_workers=8
+        num_workers=8,
+        device="cuda"
     )
 
     responses, scores, reasonings = [], [], []
