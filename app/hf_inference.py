@@ -75,13 +75,13 @@ def main():
     completions_per_process = []
 
     with distributed_state.split_between_processes(tokenized_prompts, apply_padding=True) as batched_prompts:
-    for batch in batched_prompts:
-        # Move the batch to the device
-        batch = batch.to(distributed_state.device)
-        # We generate the text, decode it and add it to the list completions_per_process
-        outputs = model.generate(**batch, max_new_tokens=max_new_tokens)
-        generated_text = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        completions_per_process.extend(generated_text)
+        for batch in batched_prompts:
+            # Move the batch to the device
+            batch = batch.to(distributed_state.device)
+            # We generate the text, decode it and add it to the list completions_per_process
+            outputs = model.generate(**batch, max_new_tokens=max_new_tokens)
+            generated_text = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+            completions_per_process.extend(generated_text)
 
     completions_gather = gather_object(completions_per_process)
     completions = completions_gather[: len(prompts)]
