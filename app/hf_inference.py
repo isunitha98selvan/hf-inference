@@ -1,146 +1,22 @@
-import ast
-import json
-import os
-import time
-import re
-from argparse import ArgumentParser
+# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-import pandas as pd
 import torch
-from accelerate import Accelerator, PartialState
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from accelerate import PartialState
 from accelerate.utils import gather_object
-from datasets import Dataset, load_dataset
-from dotenv import load_dotenv
-from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-
-load_dotenv()
-
-distributed_state = PartialState()
-
-def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name_or_path, device_map={"": distributed_state.device}
-    )
-    model.eval()
-    print(f"Loaded the model {model_name_or_path}")
-
-    test_ds = load_dataset(test_ds_path, split="test[:10]")
-    print(f"Loaded the dataset {test_ds_path}")
-
-    test_ds = test_ds.to_pandas()
-    messages = test_ds["messages"].tolist()
-    labels = test_ds["LABEL"].tolist()
-
-    prompts_all = list(zip(messages, labels))
-
-    start = time.time()
-
-    # divide the prompt list onto the available GPUs
-    results = []
-
-    pipe = pipeline(
-            "text-generation",
-            model=model_name_or_path,
-            tokenizer=tokenizer,
-            max_new_tokens=max_new_tokens,
-            device="cuda",
-        )
-    
-    with distributed_state.split_between_processes(prompts_all) as inputs:
-        for input in inputs:
-            prompt, label = input[0], input[1]
-            message = prompt[0]['content']
-            response = pipe(message)[0]['generated_text'][-1]
-
-            # store outputs and number of tokens in result{}
-            results.extend(response)
-
-    # collect results from all the GPUs
-    results_gathered = gather_object(results)
-    distributed_state.print(results_gathered)
-
-    print("results_gathered: " , results_gathered)
-    
-    timediff = time.time() - start
-    num_tokens = sum([r["num_tokens"] for r in results_gathered])
-
-    print(
-        f"tokens/sec: {num_tokens//timediff}, time {timediff}, total tokens {num_tokens}, total prompts {len(prompts_all)}"
-    )
-
-    # responses, scores, reasonings = [], [], []
-
-    # accuracy_fail = 0
-    # accuracy_pass = 0
-    # total_accuracy = 0
-    # count_fail = 0
-    # count_pass = 0
-
-    # for row in tqdm(test_ds):
-    #     score, reasoning = None, None
-
-    #     messages = [row['messages'][0]]
-    #     response = pipe(messages)[0]['generated_text'][-1]
-    #     responses.append(response)
-
-    #     content = response['content']
-    #     print(content)
-
-    #     reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
-    #     score_pattern = r'"SCORE":\s*(\w+)'
-
-    #     reasoning_match = re.search(reasoning_pattern, content, re.DOTALL)
-    #     score_match = re.search(score_pattern, content)
-
-    #     if reasoning_match:
-    #         reasoning = reasoning_match.group(1).split("', '")
-
-    #     if score_match:
-    #         score = score_match.group(1)
-    #     else:
-    #         score_pattern = r'"SCORE":\s*"(\w+)"'
-    #         score_match = re.search(score_pattern, content)
-    #         if score_match:
-    #             score = score_match.group(1)
-    #         else:
-    #             print("Was unable to parse scores from following response: \n\n")
-    #             print("The generated response is ", content)
-    #             print("The correct label is : ", row['LABEL'])
-
-    #     reasonings.append(reasoning)
-    #     scores.append(score)
-
-    #     if score == "PASS" and row['LABEL'] == "PASS":
-    #         accuracy_pass += 1
-    #     elif score == "FAIL" and row['LABEL'] == "FAIL":
-    #         accuracy_fail += 1
-
-    #     if row['LABEL'] == "PASS":
-    #         count_pass += 1
-    #     if row['LABEL'] == "FAIL":
-    #         count_fail += 1
-
-    # total_accuracy = (accuracy_pass + accuracy_fail)
-    # accuracy_pass = accuracy_pass / len(test_ds)
-    # accuracy_fail = accuracy_fail / len(test_ds)
-
-    # print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
-    # if count_pass>0:
-    #     print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
-    # if count_fail>0:
-    #     print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
-
-    # test_df = test_ds.to_pandas()
-    # test_df['generated_text'] = responses
-    # test_df['reasoning'] = reasonings
-    # test_df['score'] = scores
-
-    # dataset = Dataset.from_pandas(test_df)
-    # dataset.push_to_hub(f"{output_path}")
-    # print(f"Saved dataset to HF Hub : {output_path}")
 
 
 def main():
@@ -158,15 +34,59 @@ def main():
     )
     args = parser.parse_args()
 
-    evaluate(
-        args.model_name_or_path,
-        args.test_ds_path,
-        args.max_new_tokens,
-        args.output_path,
+    model_name_or_path = args.model_name_or_path
+    test_ds_path = args.test_ds_path
+    max_new_tokens = args.max_new_tokens
+    output_path = args.output_path
+
+
+    # Start up the distributed environment without needing the Accelerator.
+    distributed_state = PartialState()
+
+    # You can change the model to any LLM such as mistralai/Mistral-7B-v0.1 or meta-llama/Llama-2-7b-chat-hf
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name_or_path, device_map=distributed_state.device,
     )
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # Need to set the padding token to the eos token for generation
+    tokenizer.pad_token = tokenizer.eos_token
+
+    test_ds = test_ds.to_pandas()
+    prompts = test_ds["messages"].tolist()
+    # labels = test_ds["LABEL"].tolist()
+
+    # prompts = list(zip(messages, labels))
+
+    batch_size = 2
+    pad_to_multiple_of = 8
+
+    formatted_prompts = [prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)]
+    padding_side_default = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+
+    tokenized_prompts = [
+        tokenizer(formatted_prompt, padding=True, pad_to_multiple_of=pad_to_multiple_of, return_tensors="pt")
+        for formatted_prompt in formatted_prompts
+    ]
+
+    tokenizer.padding_side = padding_side_default
+
+    completions_per_process = []
+
+    with distributed_state.split_between_processes(tokenized_prompts, apply_padding=True) as batched_prompts:
+    for batch in batched_prompts:
+        # Move the batch to the device
+        batch = batch.to(distributed_state.device)
+        # We generate the text, decode it and add it to the list completions_per_process
+        outputs = model.generate(**batch, max_new_tokens=max_new_tokens)
+        generated_text = tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        completions_per_process.extend(generated_text)
+
+    completions_gather = gather_object(completions_per_process)
+    completions = completions_gather[: len(prompts)]
+    distributed_state.print(completions)
 
 
 if __name__ == "__main__":
     main()
-
-# python3 hf_inference.py --model_name_or_path microsoft/phi-1_5 --test_ds_path sunitha-ravi/financebench_perturb_labels --max_new_tokens 10 --output_path sunitha-ravi/dummy-results
