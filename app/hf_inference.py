@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 import pandas as pd
 import torch
-from accelerate import Accelerator
+from accelerate import Accelerator, PartialState
 from accelerate.utils import gather_object
 from datasets import Dataset, load_dataset
 from dotenv import load_dotenv
