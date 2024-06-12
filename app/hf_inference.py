@@ -65,19 +65,18 @@ def main():
     test_ds = load_dataset(test_ds_path, split="test[:10]")
     test_ds = test_ds.to_pandas()
     prompts = test_ds["messages"].tolist()
-    # labels = test_ds["LABEL"].tolist()
+    labels = test_ds["LABEL"].tolist()
 
     # prompts = list(zip(messages, labels))
 
     batch_size = 1
-    pad_to_multiple_of = 8
 
     formatted_prompts = [prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)]
     padding_side_default = tokenizer.padding_side
     tokenizer.padding_side = "left"
 
     tokenized_prompts = [
-        [idx, tokenizer(formatted_prompt[0][0]['content'], padding=True, pad_to_multiple_of=pad_to_multiple_of, return_tensors="pt")]
+        [labels[idx], tokenizer(formatted_prompt[0][0]['content'], padding=True, return_tensors="pt")]
             for idx, formatted_prompt in enumerate(formatted_prompts)
     ]
 
@@ -87,13 +86,13 @@ def main():
 
     with distributed_state.split_between_processes(tokenized_prompts, apply_padding=True) as batched_prompts:
         for messages in batched_prompts:
-            idx, batch = messages[0], messages[1]
+            label, batch = messages[0], messages[1]
             # Move the batch to the device
             batch = batch.to(distributed_state.device)
             # We generate the text, decode it and add it to the list completions_per_process
             outputs = model.generate(**batch, max_new_tokens=max_new_tokens)
             generated_text = tokenizer.batch_decode(outputs[:, batch["input_ids"].shape[1]:], skip_special_tokens=True)[0]
-            completions_per_process.append({"idx": idx, "text": generated_text})
+            completions_per_process.append({"label": label, "text": generated_text})
 
     completions_gather = gather_object(completions_per_process)
     completions = completions_gather[: len(prompts)]
