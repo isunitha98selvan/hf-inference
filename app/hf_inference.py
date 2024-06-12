@@ -64,8 +64,6 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
             # store outputs and number of tokens in result{}
             results["outputs"].append(response)
-            results["num_tokens"] += len(output_tokenized)
-
         results = [
             results
         ]  # transform to list, otherwise gather_object() will not collect correctly
