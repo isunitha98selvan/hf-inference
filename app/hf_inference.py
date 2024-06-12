@@ -55,10 +55,11 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
         # have each GPU do inference, prompt by prompt
         for input in inputs:
-            print("Input: ", input)
+            print("input: ", input)
             prompt, label = input[0], input[1]
 
             message = prompt[0]['content']
+            print("prompt: ", message)
             response = pipe(message)[0]['generated_text'][-1]
 
             # store outputs and number of tokens in result{}
