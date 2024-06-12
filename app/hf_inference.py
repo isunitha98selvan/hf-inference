@@ -32,29 +32,37 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
     print(f"Loaded the dataset {test_ds_path}")
 
     test_ds = test_ds.to_pandas()
-    prompts_all = test_ds["messages"].tolist()
+    messages = test_ds["messages"].tolist()
+    labels = test_ds["LABEL"].tolist()
+
+    prompts_all = list(zip(messages, labels))
 
     # sync GPUs and start the timer
     accelerator.wait_for_everyone()
     start = time.time()
 
     # divide the prompt list onto the available GPUs
-    with accelerator.split_between_processes(prompts_all) as prompts:
+    with accelerator.split_between_processes(prompts_all) as inputs:
+        pipe = pipeline(
+                "text-generation",
+                model=model_name_or_path,
+                tokenizer=tokenizer,
+                max_new_tokens=max_new_tokens,
+                device="cuda",
+            )
         # store output of generations in dict
         results = dict(outputs=[], num_tokens=0)
 
         # have each GPU do inference, prompt by prompt
-        for prompt in prompts:
-            prompt_tokenized = tokenizer(prompt[0]['content'], return_tensors="pt").to("cuda")
-            output_tokenized = model.generate(
-                **prompt_tokenized, max_new_tokens=max_new_tokens
-            )[0]
+        for input in inputs:
+            print("Input: ", input)
+            prompt, label = input[0], input[1]
 
-            # remove prompt from output
-            output_tokenized = output_tokenized[len(prompt_tokenized["input_ids"][0]) :]
+            message = prompt[0]['content']
+            response = pipe(message)[0]['generated_text'][-1]
 
             # store outputs and number of tokens in result{}
-            results["outputs"].append(tokenizer.decode(output_tokenized))
+            results["outputs"].append(response)
             results["num_tokens"] += len(output_tokenized)
 
         results = [
