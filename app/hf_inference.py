@@ -15,15 +15,14 @@ from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 load_dotenv()
-accelerator = Accelerator()
 
-message=[ f"Hello this is GPU {accelerator.process_index}" ] 
+distributed_state = PartialState()
 
 def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     model = AutoModelForCausalLM.from_pretrained(
-        model_name_or_path, device_map={"": accelerator.process_index}
+        model_name_or_path, device_map={"": distributed_state.device}
     )
     model.eval()
     print(f"Loaded the model {model_name_or_path}")
@@ -37,41 +36,31 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
     prompts_all = list(zip(messages, labels))
 
-    # sync GPUs and start the timer
-    accelerator.wait_for_everyone()
     start = time.time()
 
     # divide the prompt list onto the available GPUs
-    with accelerator.split_between_processes(prompts_all) as inputs:
-        pipe = pipeline(
-                "text-generation",
-                model=model_name_or_path,
-                tokenizer=tokenizer,
-                max_new_tokens=max_new_tokens,
-                device="cuda",
-            )
-        # store output of generations in dict
-        results = dict(outputs=[], num_tokens=0)
+    results = []
 
-        # have each GPU do inference, prompt by prompt
+    pipe = pipeline(
+            "text-generation",
+            model=model_name_or_path,
+            tokenizer=tokenizer,
+            max_new_tokens=max_new_tokens,
+            device="cuda",
+        )
+    
+    with distributed_state.split_between_processes(prompts_all) as inputs:
         for input in inputs:
-            print("input: ", input)
             prompt, label = input[0], input[1]
-
             message = prompt[0]['content']
-            print("prompt: ", message)
             response = pipe(message)[0]['generated_text'][-1]
 
             # store outputs and number of tokens in result{}
-            results["outputs"].append(response)
-        results = [
-            results
-        ]  # transform to list, otherwise gather_object() will not collect correctly
-
-    print("results: ", results)
+            results.extend(response)
 
     # collect results from all the GPUs
     results_gathered = gather_object(results)
+    distributed_state.print(results_gathered)
 
     if accelerator.is_main_process:
         timediff = time.time() - start
