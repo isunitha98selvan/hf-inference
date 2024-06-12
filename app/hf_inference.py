@@ -77,7 +77,7 @@ def main():
     tokenizer.padding_side = "left"
 
     tokenized_prompts = [
-        tokenizer(formatted_prompt, padding=True, pad_to_multiple_of=pad_to_multiple_of, return_tensors="pt")
+        tokenizer(formatted_prompt[0]['content'], padding=True, pad_to_multiple_of=pad_to_multiple_of, return_tensors="pt")
         for formatted_prompt in formatted_prompts
     ]
 
