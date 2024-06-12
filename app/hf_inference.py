@@ -62,13 +62,14 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
     results_gathered = gather_object(results)
     distributed_state.print(results_gathered)
 
-    if accelerator.is_main_process:
-        timediff = time.time() - start
-        num_tokens = sum([r["num_tokens"] for r in results_gathered])
+    print("results_gathered": results_gathered)
+    
+    timediff = time.time() - start
+    num_tokens = sum([r["num_tokens"] for r in results_gathered])
 
-        print(
-            f"tokens/sec: {num_tokens//timediff}, time {timediff}, total tokens {num_tokens}, total prompts {len(prompts_all)}"
-        )
+    print(
+        f"tokens/sec: {num_tokens//timediff}, time {timediff}, total tokens {num_tokens}, total prompts {len(prompts_all)}"
+    )
 
     # responses, scores, reasonings = [], [], []
 
