@@ -58,7 +58,7 @@ def main():
         model_name_or_path, device_map=distributed_state.device,
     )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
     # Need to set the padding token to the eos token for generation
     tokenizer.pad_token = tokenizer.eos_token
 
