@@ -45,7 +45,7 @@ def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
         # have each GPU do inference, prompt by prompt
         for prompt in prompts:
-            prompt_tokenized = tokenizer(prompt, return_tensors="pt").to("cuda")
+            prompt_tokenized = tokenizer(prompt[0], return_tensors="pt").to("cuda")
             output_tokenized = model.generate(
                 **prompt_tokenized, max_new_tokens=max_new_tokens
             )[0]
