@@ -49,6 +49,7 @@ def evaluate(
     total_accuracy = 0
     count_fail = 0
     count_pass = 0
+    not_matched = 0
 
     for row in tqdm(test_ds):
         score, reasoning = None, None
@@ -58,7 +59,6 @@ def evaluate(
         responses.append(response)
 
         content = response['content']
-        print(content)
 
         reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
         score_pattern = r'"SCORE":\s*(\w+)'
@@ -80,6 +80,7 @@ def evaluate(
                 print("Was unable to parse scores from following response: \n\n")
                 print("The generated response is ", content)
                 print("The correct label is : ", row['LABEL'])
+                not_matched+=1
     
         reasonings.append(reasoning)
         scores.append(score)
@@ -95,8 +96,6 @@ def evaluate(
             count_fail += 1
     
     total_accuracy = (accuracy_pass + accuracy_fail)
-    accuracy_pass = accuracy_pass / len(test_ds)
-    accuracy_fail = accuracy_fail / len(test_ds)
     
     print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
     if count_pass>0:
@@ -104,6 +103,8 @@ def evaluate(
     if count_fail>0:
         print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
 
+    print(f"Was unable to parse content for {not_matched} rows")
+    
     test_df = test_ds.to_pandas()
     test_df['generated_text'] = responses
     test_df['reasoning'] = reasonings
