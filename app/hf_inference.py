@@ -16,6 +16,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 load_dotenv()
 accelerator = Accelerator()
 
+message=[ f"Hello this is GPU {accelerator.process_index}" ] 
 
 def evaluate(model_name_or_path, test_ds_path, max_new_tokens, output_path):
 
