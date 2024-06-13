@@ -98,6 +98,7 @@ def main():
         total_accuracy = 0
         count_fail = 0
         count_pass = 0
+        not_matched = 0
     
         for row in completions_gather:
             score, reasoning = None, None
@@ -119,6 +120,8 @@ def main():
                 score_match = re.search(score_pattern, json_string)
                 if score_match:
                     score = score_match.group(1)
+                else:
+                    not_matched+=1
     
             reasonings.append(reasoning)
             scores.append(score)
@@ -139,9 +142,9 @@ def main():
         if count_pass>0:
             print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
         if count_fail>0:
-            print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
-        
-
+            print(f"Correct FAIL examples: {accuracy_fail}   FAIL Accuracy: {accuracy_fail/count_fail}")
+        if not_matched>0:
+            print(f"Could not extract scores from {not_matched} examples")
 
 if __name__ == "__main__":
     main()
