@@ -72,8 +72,7 @@ def main():
             completions_per_process.append({"_id": _id, "label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
-    # completions = completions_gather[: len(prompts)]
-    distributed_state.print(completions_gather)
+    completions_gather = completions_gather[: len(input_rows)]
 
     ## parse outputs
     if distributed_state.is_last_process:
