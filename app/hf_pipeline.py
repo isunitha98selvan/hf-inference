@@ -133,7 +133,7 @@ def main():
         if not_matched>0:
             print(f"Could not extract scores from {not_matched} examples")
     
-        df = pd.DataFrame({'_id': ids, 'generated_text': completions_gather, 'score': score, 'reasoning': reasonings})
+        df = pd.DataFrame({'_id': ids, 'generated_text': completions_gather, 'score': scores, 'reasoning': reasonings})
         dataset = Dataset.from_pandas(df)
         dataset.push_to_hub(f"{output_path}")
         print(f"Saved dataset to HF Hub : {output_path}")
