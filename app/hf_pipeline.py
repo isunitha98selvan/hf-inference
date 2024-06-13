@@ -101,7 +101,7 @@ def main():
 
     for row in completions_gather:
         score, reasoning = None, None
-        response = row['text']
+        json_string = row['text']
         label = row['label']
 
         reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
@@ -116,7 +116,7 @@ def main():
             score = score_match.group(1)
         else:
             score_pattern = r'"SCORE":\s*"(\w+)"'
-            score_match = re.search(score_pattern, content)
+            score_match = re.search(score_pattern, json_string)
             if score_match:
                 score = score_match.group(1)
 
