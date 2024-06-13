@@ -81,14 +81,69 @@ def main():
           
         for input in input_rows:
             label, prompt = input[0], input[1]
-            message = prompt[0]['content']
-            response = pipe(message)
-            print("Response: ", response)
+            message = [prompt[0]]
+            response = pipe(message)[0]['generated_text'][-1]
             completions_per_process.append({"label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
     # completions = completions_gather[: len(prompts)]
     distributed_state.print(completions_gather)
+
+    # parse outputs
+    
+    scores, reasonings = [], [], []
+
+    accuracy_fail = 0
+    accuracy_pass = 0
+    total_accuracy = 0
+    count_fail = 0
+    count_pass = 0
+
+    for row in completions_gather:
+        score, reasoning = None, None
+        response = row['text']['content']
+        label = row['label']
+
+        reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
+        score_pattern = r'"SCORE":\s*"(\w+)"'
+
+        reasoning_match = re.search(reasoning_pattern, json_string, re.DOTALL)
+        score_match = re.search(score_pattern, json_string)
+    
+        if reasoning_match:
+            reasoning_values = reasoning_match.group(1).split("', '")
+            reasonings.append(reasoning_values)
+        if score_match:
+            score = score_match.group(1)
+        else:
+            score_pattern = r'"SCORE":\s*"(\w+)"'
+            score_match = re.search(score_pattern, content)
+            if score_match:
+                score = score_match.group(1)
+
+        reasonings.append(reasoning)
+        scores.append(score)
+
+        if score == "PASS" and row['LABEL'] == "PASS":
+            accuracy_pass += 1
+        elif score == "FAIL" and row['LABEL'] == "FAIL":
+            accuracy_fail += 1
+
+        if row['LABEL'] == "PASS":
+            count_pass += 1
+        if row['LABEL'] == "FAIL":
+            count_fail += 1
+
+    total_accuracy = (accuracy_pass + accuracy_fail)
+    accuracy_pass = accuracy_pass / len(test_ds)
+    accuracy_fail = accuracy_fail / len(test_ds)
+
+    print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
+    if count_pass>0:
+        print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
+    if count_fail>0:
+        print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
+        
 
 
 if __name__ == "__main__":
