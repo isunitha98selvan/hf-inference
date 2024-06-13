@@ -71,13 +71,12 @@ def main():
 
     batch_size = 1
 
-    formatted_prompts = [prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)]
     padding_side_default = tokenizer.padding_side
     tokenizer.padding_side = "left"
 
     tokenized_prompts = [
-        [labels[idx], tokenizer(formatted_prompt[0][0]['content'], padding=True, return_tensors="pt")]
-            for idx, formatted_prompt in enumerate(formatted_prompts)
+        [labels[idx], tokenizer(formatted_prompt[0]['content'], padding=True, return_tensors="pt")]
+            for idx, formatted_prompt in enumerate(prompts)
     ]
 
     tokenizer.padding_side = padding_side_default
@@ -91,7 +90,10 @@ def main():
             batch = batch.to(distributed_state.device)
             # We generate the text, decode it and add it to the list completions_per_process
             outputs = model.generate(**batch, max_new_tokens=max_new_tokens)
-            generated_text = tokenizer.batch_decode(outputs[:, batch["input_ids"].shape[1]:], skip_special_tokens=True)[0]
+            generated_text = tokenizer.decode(
+                outputs[0][batch["input_ids"].shape[1] :], skip_special_tokens=True
+            )
+            
             completions_per_process.append({"label": label, "text": generated_text})
 
     completions_gather = gather_object(completions_per_process)
