@@ -76,18 +76,19 @@ def main():
                 tokenizer=tokenizer,
                 max_new_tokens=max_new_tokens,
                 device="cuda",
+                return_full_text=False
             )
           
         for input in input_rows:
             label, prompt = input[0], input[1]
             message = prompt[0]['content']
-            response = pipe(message)[0]['generated_text']
+            response = pipe(message)
             print("Response: ", response)
             completions_per_process.append({"label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
     # completions = completions_gather[: len(prompts)]
-    distributed_state.print(completions)
+    distributed_state.print(completions_gather)
 
 
 if __name__ == "__main__":
