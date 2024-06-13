@@ -66,7 +66,7 @@ def main():
             )
           
         for input in input_rows:
-            label, _id, prompt = input['LABEL'], input['_id'], input['messages']
+            label, _id, prompt = input[0], input[1], input[2]
             message = [prompt[0]]
             response = pipe(message)[0]['generated_text']
             completions_per_process.append({"_id": _id, "label": label, "text": response})
