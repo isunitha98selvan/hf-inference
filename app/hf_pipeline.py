@@ -45,7 +45,7 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
-    test_ds = load_dataset(test_ds_path, split="test[:10]")
+    test_ds = load_dataset(test_ds_path, split="test")
     test_ds = test_ds.to_pandas()
     
     messages = test_ds["messages"].tolist()
@@ -76,66 +76,67 @@ def main():
     distributed_state.print(completions_gather)
 
     ## parse outputs
-    scores, reasonings, ids = [], [], []
-
-    accuracy_fail = 0
-    accuracy_pass = 0
-    total_accuracy = 0
-    count_fail = 0
-    count_pass = 0
-    not_matched = 0
-
-    for row in completions_gather:
-        score, reasoning = None, None
-        json_string = row['text']
-        label = row['label']
-        ids.append(row['_id'])
-
-        reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
-        score_pattern = r'"SCORE":\s*"(\w+)"'
-
-        reasoning_match = re.search(reasoning_pattern, json_string, re.DOTALL)
-        score_match = re.search(score_pattern, json_string)
+    if distributed_state.is_last_process:
+        scores, reasonings, ids = [], [], []
     
-        if reasoning_match:
-            reasoning = reasoning_match.group(1).split("', '")
-        if score_match:
-            score = score_match.group(1)
-        else:
+        accuracy_fail = 0
+        accuracy_pass = 0
+        total_accuracy = 0
+        count_fail = 0
+        count_pass = 0
+        not_matched = 0
+    
+        for row in completions_gather:
+            score, reasoning = None, None
+            json_string = row['text']
+            label = row['label']
+            ids.append(row['_id'])
+    
+            reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
             score_pattern = r'"SCORE":\s*"(\w+)"'
+    
+            reasoning_match = re.search(reasoning_pattern, json_string, re.DOTALL)
             score_match = re.search(score_pattern, json_string)
+        
+            if reasoning_match:
+                reasoning = reasoning_match.group(1).split("', '")
             if score_match:
                 score = score_match.group(1)
             else:
-                not_matched+=1
-
-        reasonings.append(reasoning)
-        scores.append(score)
-
-        if score == "PASS" and label == "PASS":
-            accuracy_pass += 1
-        elif score == "FAIL" and label == "FAIL":
-            accuracy_fail += 1
-
-        if label == "PASS":
-            count_pass += 1
-        if label == "FAIL":
-            count_fail += 1
-
-    total_accuracy = (accuracy_pass + accuracy_fail)
+                score_pattern = r'"SCORE":\s*"(\w+)"'
+                score_match = re.search(score_pattern, json_string)
+                if score_match:
+                    score = score_match.group(1)
+                else:
+                    not_matched+=1
     
-    print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
-    if count_pass>0:
-        print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
-    if count_fail>0:
-        print(f"Correct FAIL examples: {accuracy_fail}   FAIL Accuracy: {accuracy_fail/count_fail}")
-    if not_matched>0:
-        print(f"Could not extract scores from {not_matched} examples")
-
-    df = pd.DataFrame({'_id': ids, 'generated_text': completions_gather, 'score': score, 'reasoning': reasonings})
-    dataset = Dataset.from_pandas(df)
-    dataset.push_to_hub(f"{output_path}")
-    print(f"Saved dataset to HF Hub : {output_path}")
+            reasonings.append(reasoning)
+            scores.append(score)
+    
+            if score == "PASS" and label == "PASS":
+                accuracy_pass += 1
+            elif score == "FAIL" and label == "FAIL":
+                accuracy_fail += 1
+    
+            if label == "PASS":
+                count_pass += 1
+            if label == "FAIL":
+                count_fail += 1
+    
+        total_accuracy = (accuracy_pass + accuracy_fail)
+        
+        print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
+        if count_pass>0:
+            print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
+        if count_fail>0:
+            print(f"Correct FAIL examples: {accuracy_fail}   FAIL Accuracy: {accuracy_fail/count_fail}")
+        if not_matched>0:
+            print(f"Could not extract scores from {not_matched} examples")
+    
+        df = pd.DataFrame({'_id': ids, 'generated_text': completions_gather, 'score': score, 'reasoning': reasonings})
+        dataset = Dataset.from_pandas(df)
+        dataset.push_to_hub(f"{output_path}")
+        print(f"Saved dataset to HF Hub : {output_path}")
 
 if __name__ == "__main__":
     main()
