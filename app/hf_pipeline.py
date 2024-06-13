@@ -63,7 +63,7 @@ def main():
     test_ds = load_dataset(test_ds_path, split="test[:10]")
     test_ds = test_ds.to_pandas()
     
-    prompts = test_ds["messages"].tolist()
+    messages = test_ds["messages"].tolist()
     labels = test_ds["LABEL"].tolist()
     inputs = list(zip(labels, messages))
 
