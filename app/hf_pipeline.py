@@ -72,7 +72,7 @@ def main():
             completions_per_process.append({"_id": _id, "label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
-    completions_gather = completions_gather[: len(input_rows)]
+    completions_gather = completions_gather[: len(inputs)]
 
     ## parse outputs
     if distributed_state.is_last_process:
@@ -102,7 +102,7 @@ def main():
             if score_match:
                 score = score_match.group(1)
             else:
-                score_pattern = r'"SCORE":\s*"(\w+)"'
+                score_pattern = r'"SCORE":\s*(\w+)'
                 score_match = re.search(score_pattern, json_string)
                 if score_match:
                     score = score_match.group(1)
