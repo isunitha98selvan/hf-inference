@@ -89,59 +89,59 @@ def main():
     # completions = completions_gather[: len(prompts)]
     distributed_state.print(completions_gather)
 
-    # parse outputs
+    if distributed_state.is_last_process:
+        # parse outputs
+        scores, reasonings = [], []
     
-    scores, reasonings = [], []
-
-    accuracy_fail = 0
-    accuracy_pass = 0
-    total_accuracy = 0
-    count_fail = 0
-    count_pass = 0
-
-    for row in completions_gather:
-        score, reasoning = None, None
-        json_string = row['text']
-        label = row['label']
-
-        reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
-        score_pattern = r'"SCORE":\s*"(\w+)"'
-
-        reasoning_match = re.search(reasoning_pattern, json_string, re.DOTALL)
-        score_match = re.search(score_pattern, json_string)
+        accuracy_fail = 0
+        accuracy_pass = 0
+        total_accuracy = 0
+        count_fail = 0
+        count_pass = 0
     
-        if reasoning_match:
-            reasoning = reasoning_match.group(1).split("', '")
-        if score_match:
-            score = score_match.group(1)
-        else:
+        for row in completions_gather:
+            score, reasoning = None, None
+            json_string = row['text']
+            label = row['label']
+    
+            reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
             score_pattern = r'"SCORE":\s*"(\w+)"'
+    
+            reasoning_match = re.search(reasoning_pattern, json_string, re.DOTALL)
             score_match = re.search(score_pattern, json_string)
+        
+            if reasoning_match:
+                reasoning = reasoning_match.group(1).split("', '")
             if score_match:
                 score = score_match.group(1)
-
-        reasonings.append(reasoning)
-        scores.append(score)
-
-        if score == "PASS" and label == "PASS":
-            accuracy_pass += 1
-        elif score == "FAIL" and label == "FAIL":
-            accuracy_fail += 1
-
-        if label == "PASS":
-            count_pass += 1
-        if label == "FAIL":
-            count_fail += 1
-
-    total_accuracy = (accuracy_pass + accuracy_fail)
-    accuracy_pass = accuracy_pass / len(test_ds)
-    accuracy_fail = accuracy_fail / len(test_ds)
-
-    print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
-    if count_pass>0:
-        print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
-    if count_fail>0:
-        print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
+            else:
+                score_pattern = r'"SCORE":\s*"(\w+)"'
+                score_match = re.search(score_pattern, json_string)
+                if score_match:
+                    score = score_match.group(1)
+    
+            reasonings.append(reasoning)
+            scores.append(score)
+    
+            if score == "PASS" and label == "PASS":
+                accuracy_pass += 1
+            elif score == "FAIL" and label == "FAIL":
+                accuracy_fail += 1
+    
+            if label == "PASS":
+                count_pass += 1
+            if label == "FAIL":
+                count_fail += 1
+    
+        total_accuracy = (accuracy_pass + accuracy_fail)
+        accuracy_pass = accuracy_pass / len(test_ds)
+        accuracy_fail = accuracy_fail / len(test_ds)
+    
+        print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
+        if count_pass>0:
+            print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
+        if count_fail>0:
+            print(f"Correct FAIL examples: {accuracy_pass}   FAIL Accuracy: {accuracy_fail/count_fail}")
         
 
 
