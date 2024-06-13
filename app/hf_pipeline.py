@@ -76,7 +76,6 @@ def main():
                 tokenizer=tokenizer,
                 max_new_tokens=max_new_tokens,
                 device="cuda",
-                return_full_text=False
             )
           
         for input in input_rows:
