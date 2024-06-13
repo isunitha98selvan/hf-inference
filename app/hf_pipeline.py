@@ -123,14 +123,14 @@ def main():
         reasonings.append(reasoning)
         scores.append(score)
 
-        if score == "PASS" and row['LABEL'] == "PASS":
+        if score == "PASS" and label == "PASS":
             accuracy_pass += 1
-        elif score == "FAIL" and row['LABEL'] == "FAIL":
+        elif score == "FAIL" and label == "FAIL":
             accuracy_fail += 1
 
-        if row['LABEL'] == "PASS":
+        if label == "PASS":
             count_pass += 1
-        if row['LABEL'] == "FAIL":
+        if label == "FAIL":
             count_fail += 1
 
     total_accuracy = (accuracy_pass + accuracy_fail)
