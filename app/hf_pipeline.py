@@ -82,7 +82,7 @@ def main():
         for input in input_rows:
             label, prompt = input[0], input[1]
             message = [prompt[0]]
-            response = pipe(message)[0]['generated_text'][-1]
+            response = pipe(message)[0]['generated_text']
             completions_per_process.append({"label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
@@ -91,7 +91,7 @@ def main():
 
     # parse outputs
     
-    scores, reasonings = [], [], []
+    scores, reasonings = [], []
 
     accuracy_fail = 0
     accuracy_pass = 0
@@ -111,8 +111,7 @@ def main():
         score_match = re.search(score_pattern, json_string)
     
         if reasoning_match:
-            reasoning_values = reasoning_match.group(1).split("', '")
-            reasonings.append(reasoning_values)
+            reasoning = reasoning_match.group(1).split("', '")
         if score_match:
             score = score_match.group(1)
         else:
