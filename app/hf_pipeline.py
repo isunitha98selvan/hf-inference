@@ -76,6 +76,7 @@ def main():
                 tokenizer=tokenizer,
                 max_new_tokens=max_new_tokens,
                 device="cuda",
+                return_full_text=False
             )
           
         for input in input_rows:
@@ -100,7 +101,7 @@ def main():
 
     for row in completions_gather:
         score, reasoning = None, None
-        response = row['text']['content']
+        response = row['text']
         label = row['label']
 
         reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
