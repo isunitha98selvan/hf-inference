@@ -134,9 +134,7 @@ def main():
                 count_fail += 1
     
         total_accuracy = (accuracy_pass + accuracy_fail)
-        accuracy_pass = accuracy_pass / len(test_ds)
-        accuracy_fail = accuracy_fail / len(test_ds)
-    
+        
         print(f"Correct examples: {total_accuracy}   Accuracy: {total_accuracy/len(test_ds)}")
         if count_pass>0:
             print(f"Correct PASS examples: {accuracy_pass}   PASS Accuracy: {accuracy_pass/count_pass}")
