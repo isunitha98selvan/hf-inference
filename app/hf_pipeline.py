@@ -1,17 +1,3 @@
-# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import ast
 import json
 import os
@@ -61,15 +47,15 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     test_ds = load_dataset(test_ds_path, split="test[:10]")
-    test_ds = test_ds.to_pandas()
+    # test_ds = test_ds.to_pandas()
     
-    messages = test_ds["messages"].tolist()
-    labels = test_ds["LABEL"].tolist()
-    inputs = list(zip(labels, messages))
+    # messages = test_ds["messages"].tolist()
+    # labels = test_ds["LABEL"].tolist()
+    # inputs = list(zip(labels, messages))
 
     completions_per_process = []
 
-    with distributed_state.split_between_processes(inputs) as input_rows:
+    with distributed_state.split_between_processes(test_ds) as input_rows:
         pipe = pipeline(
                 "text-generation",
                 model=model_name_or_path,
@@ -80,7 +66,7 @@ def main():
             )
           
         for input in input_rows:
-            label, prompt = input[0], input[1]
+            label, prompt = input['LABEL'], input['messages']
             message = [prompt[0]]
             response = pipe(message)[0]['generated_text']
             completions_per_process.append({"label": label, "text": response})
