@@ -46,9 +46,16 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
     test_ds = load_dataset(test_ds_path, split="test[:10]")
+    test_ds = test_ds.to_pandas()
+    
+    messages = test_ds["messages"].tolist()
+    _ids = test_ds["_id"].tolist()
+    labels = test_ds["LABEL"].tolist()
+    inputs = list(zip(labels, _ids, messages))
+    
     completions_per_process = []
 
-    with distributed_state.split_between_processes(test_ds) as input_rows:
+    with distributed_state.split_between_processes(inputs) as input_rows:
         pipe = pipeline(
                 "text-generation",
                 model=model_name_or_path,
@@ -59,17 +66,17 @@ def main():
             )
           
         for input in input_rows:
-            label, prompt = input['LABEL'], input['messages']
+            label, _id, prompt = input['LABEL'], input['_id'], input['messages']
             message = [prompt[0]]
             response = pipe(message)[0]['generated_text']
-            completions_per_process.append({"label": label, "text": response})
+            completions_per_process.append({"_id": _id, "label": label, "text": response})
 
     completions_gather = gather_object(completions_per_process)
     # completions = completions_gather[: len(prompts)]
     distributed_state.print(completions_gather)
 
     ## parse outputs
-    scores, reasonings = [], []
+    scores, reasonings, ids = [], [], []
 
     accuracy_fail = 0
     accuracy_pass = 0
@@ -82,6 +89,7 @@ def main():
         score, reasoning = None, None
         json_string = row['text']
         label = row['label']
+        ids.append(row['_id'])
 
         reasoning_pattern = r'"REASONING":\s*\[(.*?)\]'
         score_pattern = r'"SCORE":\s*"(\w+)"'
@@ -124,12 +132,8 @@ def main():
     if not_matched>0:
         print(f"Could not extract scores from {not_matched} examples")
 
-    test_df = test_ds.to_pandas()
-    test_df['generated_text'] = completions_gather
-    test_df['reasoning'] = reasonings
-    test_df['score'] = scores
-
-    dataset = Dataset.from_pandas(test_df)
+    df = pd.DataFrame({'_id': ids, 'generated_text': completions_gather, 'score': score, 'reasoning': reasonings})
+    dataset = Dataset.from_pandas(df)
     dataset.push_to_hub(f"{output_path}")
     print(f"Saved dataset to HF Hub : {output_path}")
 
