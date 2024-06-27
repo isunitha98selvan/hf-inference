@@ -16,7 +16,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 client = OpenAI(
-    base_url="http://localhost:8000/v1",
+    base_url="http://localhost:8001/v1",
     api_key=args.api_key,
 )
 
