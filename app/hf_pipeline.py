@@ -39,9 +39,9 @@ def main():
     distributed_state = PartialState()
 
     # You can change the model to any LLM such as mistralai/Mistral-7B-v0.1 or meta-llama/Llama-2-7b-chat-hf
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name_or_path, device_map=distributed_state.device,
-    )
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     model_name_or_path, device_map=distributed_state.device,
+    # )
 
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
